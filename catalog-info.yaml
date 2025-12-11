@@ -1,0 +1,19 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  annotations:
+    github.com/project-slug: worldcoin/trustzone-signing-workflows
+  tags: ['code-lang:PLACEHOLDER-ADD-CODE-LANGUAGE']
+  description: singing github workflows for trustzone
+  links:
+    - title: Linear
+      url: PLACEHOLDER-ADD-LINEAR-URL
+    - title: Documentation
+      url: PLACEHOLDER-ADD-DOCUMENTATION-URL
+    - title: Slack
+      url: PLACEHOLDER-ADD-SLACK-URL
+  name: trustzone-signing-workflows
+spec:
+  lifecycle: production
+  owner: team-orb-device
+  type: resource
