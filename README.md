@@ -1,2 +1,3 @@
-# trustzone-signing-workflows
-trustzone-signing-workflows repository
+# orb-rustzone-ci
+
+CI for Rust Trusted Applications (TAs) for the OP-TEE OS.
