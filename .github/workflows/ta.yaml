@@ -1,0 +1,152 @@
+# 1. Check out orb-rustzone as subdirectory 
+# 2. Install nix and cachix
+# 3. Nix print env vars (of orb-rustzone-ci, not subdir)
+# 4. Execute cargo x optee sign (from parent orb-rustzone-ci xtask)
+
+# This worfklow is written such that the caller is able to be untrusted (with exception
+name: TA CI
+on:
+  workflow_dispatch:
+    inputs:
+      target_env:   
+        description: Which environment to sign for
+        required: true
+        type: choice
+        default: stage
+        options:
+          - stage
+          - prod
+      source:
+        description: The commit to build and sign
+        required: true
+        type: string
+      cargo_profile:
+        description: The cargo profile to use
+        required: true
+        type: choice
+        default: artifact
+        options:
+          - artifact
+          - release
+  workflow_call:
+    inputs:
+      target_env:   
+        description: Which environment to sign for (stage,prod)
+        required: true
+        type: string
+      source:
+        description: The commit to build and sign
+        required: true
+        type: string
+      cargo_profile:
+        description: The cargo profile to use
+        required: true
+        type: string
+    secrets:
+      ORB_GIT_HUB_TOKEN:
+        required: true
+  push:
+    branches:
+      - main"
+      - prod
+    tags:
+      - '**'
+
+env:
+  SOURCE_REPO: orb-software # TODO: change to orb-rustzone
+
+permissions:
+  contents: read
+
+jobs:
+  check-inputs:
+    name: Check Workflow Inputs
+    runs-on: ubuntu-24.04
+    env:
+      # To avoid injection in bash, we assign any input processed by the shell to env
+      # vars here first. This also "clears" their use by other jobs.
+      # https://docs.github.com/en/actions/reffooerence/security/secure-use#use-an-intermediate-environment-variable
+      CI_PROFILE: ${{ inputs.cargo_profile }}
+      CI_TARGET_ENV: ${{ inputs.target_env }}
+    permissions: {} # No permissions
+    steps:
+      - name: Ensure target_env is valid
+        run: |
+          set -Eeuxo pipefail
+          if ! [[ "${CI_TARGET_ENV}" =~ ^(stage|prod)$ ]]; then
+            echo "target_env should be either stage or prod."
+            exit 1
+          fi
+      - name: Ensure cargo_profile is valid
+        run: |
+          set -Eeuxo pipefail
+          if ! [[ "${CI_PROFILE}" =~ ^(release|artifact)$ ]]; then
+            echo "cargo_profile should be either stage or prod."
+            exit 1
+          fi
+
+  build:
+    name: Build
+    runs-on: ubuntu-24.04
+    needs: [check-inputs]
+    env:
+      CI_PROFILE: ${{ inputs.cargo_profile }}
+      CI_TARGET_ENV: ${{ inputs.target_env }}
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # pin@v6.0.1
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # pin@v6.0.1
+        with:
+          repository: worldcoin/${{ env.SOURCE_REPO }}
+          ref: ${{ inputs.source }}
+          path: ./${{ env.SOURCE_REPO }}
+          token: ${{ secrets.ORB_GIT_HUB_TOKEN }}
+          lfs: false
+      - uses: cachix/install-nix-action@0b0e072294b088b73964f1d72dfdac0951439dbd # pin@v31.8.4
+        with:
+          github_access_token: ${{ secrets.ORB_GIT_HUB_TOKEN }}
+      # We don't use cachix due to concerns about cache injection
+      # - uses: cachix/cachix-action@ad2ddac53f961de1989924296a1f236fcfbaa4fc # pin@v15
+      #   continue-on-error: true
+      #   with:
+      #     name: worldcoin
+      #     authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+      - name: Cache cargo dependencies
+        uses: Swatinem/rust-cache@98c8021b550208e191a6a3145459bfc9fb29c4c0 # pin@v2.8.0
+        with:
+          key: custom-${{ hashFiles('**/*.nix', 'flake.lock') }}
+      - name: Print environment
+        run: |
+          uname -a
+          nix develop -c env
+
+      - name: Optee TA Build
+        run: |
+          nix develop -c \
+            cargo x optee ta build --profile artifact --all --all-features --all-targets $EXCLUDES -- --nocapture
+
+
+      - name: Bundle artifacts
+        run: |
+          set -Eeuxo pipefail
+          mkdir artifacts_bundled
+          for b in artifacts_linux/*; do
+            b="$(basename ${b})"
+            # We make sure that the tarball is idempotent:
+            # https://stackoverflow.com/a/54908072
+            tar --sort=name --owner=root:0 --group=root:0 --mtime='@0' \
+              -vahcf artifacts_bundled/${b}.tar.zst -C artifacts_linux/${b} .
+          done
+          ls -aRsh artifacts_bundled
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # pin@v4.3.3
+        with:
+          # upload v4 doesn't support writing multiple times to the same artifact name.
+          # so its important that we name it after the workflow and not something
+          # general like "artifacts"
+          name: rust
+          path: artifacts_bundled
+          if-no-files-found: error
+          retention-days: 14

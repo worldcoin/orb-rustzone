@@ -1,0 +1,16 @@
+[package]
+name = "x"
+version = "0.0.0"
+publish = false
+
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+tracing-subscriber = "0.3.22"
+
+[dependencies.orb-x-optee]
+# git = "https://github.com/worldcoin/orb-software.git"
+# branch = "main"
+path = "/home/ryan.butler/P/wc/orb-software/xtask/optee"
