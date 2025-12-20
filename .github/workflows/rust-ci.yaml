@@ -10,7 +10,7 @@ on:
       - '**'
 
 permissions:
-  read: true
+  contents: read
 
 jobs:
   fmt:
