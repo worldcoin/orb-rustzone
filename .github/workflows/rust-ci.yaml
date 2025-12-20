@@ -1,0 +1,100 @@
+name: Rust CI
+on:
+  pull_request:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - prod
+    tags:
+      - '**'
+
+permissions:
+  read: true
+
+jobs:
+  fmt:
+    name: Format
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # pin@v6.0.1
+        with:
+          token: ${{ secrets.GIT_HUB_TOKEN }}
+      - uses: cachix/install-nix-action@0b0e072294b088b73964f1d72dfdac0951439dbd # pin@v31.8.4
+        with:
+          github_access_token: ${{ secrets.GIT_HUB_TOKEN }}
+      - uses: cachix/cachix-action@ad2ddac53f961de1989924296a1f236fcfbaa4fc # pin@v15
+        continue-on-error: true
+        with:
+          name: worldcoin
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+      - name: Print environment
+        run: |
+          uname -a
+          nix develop -c env
+
+      - name: Check Rust formatting
+        run: cargo fmt --check --all
+
+  clippy:
+    name: Clippy
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # pin@v6.0.1
+        with:
+          token: ${{ secrets.GIT_HUB_TOKEN }}
+      - uses: cachix/install-nix-action@0b0e072294b088b73964f1d72dfdac0951439dbd # pin@v31.8.4
+        with:
+          github_access_token: ${{ secrets.GIT_HUB_TOKEN }}
+      - uses: cachix/cachix-action@ad2ddac53f961de1989924296a1f236fcfbaa4fc # pin@v15
+        continue-on-error: true
+        with:
+          name: worldcoin
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+      - name: Authorize private git repos
+        run: git config --global url."https://${{ secrets.ORB_GIT_HUB_TOKEN }}@github.com".insteadOf https://github.com
+      - name: Cache cargo dependencies
+        uses: Swatinem/rust-cache@98c8021b550208e191a6a3145459bfc9fb29c4c0 # pin@v2.8.0
+        with:
+          key: custom-${{ hashFiles('**/*.nix', 'flake.lock') }}
+      - name: Print environment
+        run: |
+          uname -a
+          nix develop -c env
+
+      - name: Clippy lints
+        run: |
+          nix develop -c \
+            cargo clippy --all --all-features --all-targets --no-deps -- -D warnings
+
+  cargo-deny:
+    name: Cargo Deny
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # pin@v6.0.1
+        with:
+          token: ${{ secrets.GIT_HUB_TOKEN }}
+      - uses: cachix/install-nix-action@0b0e072294b088b73964f1d72dfdac0951439dbd # pin@v31.8.4
+        with:
+          github_access_token: ${{ secrets.GIT_HUB_TOKEN }}
+      - uses: cachix/cachix-action@ad2ddac53f961de1989924296a1f236fcfbaa4fc # pin@v15
+        continue-on-error: true
+        with:
+          name: worldcoin
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+      - name: Authorize private git repos
+        run: git config --global url."https://${{ secrets.GIT_HUB_TOKEN }}@github.com".insteadOf https://github.com
+      - name: Print environment
+        run: |
+          uname -a
+          nix develop -c env
+
+      - name: Check licenses
+        run: |
+          nix develop -c \
+            cargo deny check licenses
+
+      - name: Check security advisories
+        run: |
+          nix develop -c \
+            cargo deny check advisories

@@ -11,5 +11,5 @@ license = "MIT OR (Apache-2.0 WITH LLVM-exception)"
 repository = "https://github.com/worldcoin/orb-rustzone-ci"
 
 [workspace.dependencies.orb-x-optee]
-git = "https://github.com/worldcoin/orb-software"
 branch = "main"
+git = "https://github.com/worldcoin/orb-software"
