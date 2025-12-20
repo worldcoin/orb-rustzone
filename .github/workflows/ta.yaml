@@ -128,7 +128,7 @@ jobs:
               -p orb-secure-storage-ta
           # TODO: ORBS-1212
           mkdir artifacts_optee
-          cp ./${CI_SOURCE_REPO/optee/target/aarch64-unknown-linux-gnu/${CI_PROFILE}/orb-secure-storage-ta artifacts_optee/
+          cp ./${CI_SOURCE_REPO}/optee/target/aarch64-unknown-linux-gnu/${CI_PROFILE}/orb-secure-storage-ta artifacts_optee/
 
       - name: Upload artifacts
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # pin@v4.3.3
