@@ -17,9 +17,10 @@ on:
           - stage
           - prod
       source:
-        description: The commit to build and sign
+        description: The git ref to build and sign
         required: true
         type: string
+        default: main
       cargo_profile:
         description: The cargo profile to use
         required: true
@@ -35,25 +36,19 @@ on:
         required: true
         type: string
       source:
-        description: The commit to build and sign
+        description: The git ref to build and sign
         required: true
         type: string
       cargo_profile:
         description: The cargo profile to use
         required: true
         type: string
-    secrets:
-      ORB_GIT_HUB_TOKEN:
-        required: true
-  push:
-    branches:
-      - main"
-      - prod
-    tags:
-      - '**'
+    # secrets:
+      # ORB_GIT_HUB_TOKEN:
+      #   required: true
 
 env:
-  SOURCE_REPO: orb-software # TODO: change to orb-rustzone
+  CI_SOURCE_REPO: orb-software # TODO: change to orb-rustzone
 
 permissions:
   contents: read
@@ -98,20 +93,21 @@ jobs:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # pin@v6.0.1
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # pin@v6.0.1
         with:
-          repository: worldcoin/${{ env.SOURCE_REPO }}
+          repository: worldcoin/${{ env.CI_SOURCE_REPO }}
           ref: ${{ inputs.source }}
-          path: ./${{ env.SOURCE_REPO }}
-          token: ${{ secrets.ORB_GIT_HUB_TOKEN }}
+          path: ./${{ env.CI_SOURCE_REPO }}
+          token: ${{ secrets.GIT_HUB_TOKEN }}
           lfs: false
       - uses: cachix/install-nix-action@0b0e072294b088b73964f1d72dfdac0951439dbd # pin@v31.8.4
         with:
-          github_access_token: ${{ secrets.ORB_GIT_HUB_TOKEN }}
-      # We don't use cachix due to concerns about cache injection
-      # - uses: cachix/cachix-action@ad2ddac53f961de1989924296a1f236fcfbaa4fc # pin@v15
-      #   continue-on-error: true
-      #   with:
-      #     name: worldcoin
-      #     authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+          github_access_token: ${{ secrets.GIT_HUB_TOKEN }}
+      - uses: cachix/cachix-action@ad2ddac53f961de1989924296a1f236fcfbaa4fc # pin@v15
+        # not on prod to eliminate privilege escalation via cachix cache injection
+        if: ${{ inputs.target_env }} == 'stage' 
+        continue-on-error: true
+        with:
+          name: worldcoin
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
       - name: Cache cargo dependencies
         uses: Swatinem/rust-cache@98c8021b550208e191a6a3145459bfc9fb29c4c0 # pin@v2.8.0
         with:
@@ -123,22 +119,16 @@ jobs:
 
       - name: Optee TA Build
         run: |
-          nix develop -c \
-            cargo x optee ta build --profile artifact --all --all-features --all-targets $EXCLUDES -- --nocapture
-
-
-      - name: Bundle artifacts
-        run: |
           set -Eeuxo pipefail
-          mkdir artifacts_bundled
-          for b in artifacts_linux/*; do
-            b="$(basename ${b})"
-            # We make sure that the tarball is idempotent:
-            # https://stackoverflow.com/a/54908072
-            tar --sort=name --owner=root:0 --group=root:0 --mtime='@0' \
-              -vahcf artifacts_bundled/${b}.tar.zst -C artifacts_linux/${b} .
-          done
-          ls -aRsh artifacts_bundled
+           # TODO: dont hard code single crate
+          nix develop -c \
+            cargo x optee ta build \
+              --optee-workspace ./${CI_SOURCE_REPO}/optee \
+              --profile ${CI_PROFILE} \
+              -p orb-secure-storage-ta
+          # TODO: ORBS-1212
+          mkdir artifacts_optee
+          cp ./${CI_SOURCE_REPO/optee/target/aarch64-unknown-linux-gnu/${CI_PROFILE}/orb-secure-storage-ta artifacts_optee/
 
       - name: Upload artifacts
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # pin@v4.3.3
@@ -146,7 +136,7 @@ jobs:
           # upload v4 doesn't support writing multiple times to the same artifact name.
           # so its important that we name it after the workflow and not something
           # general like "artifacts"
-          name: rust
-          path: artifacts_bundled
+          name: ta_build
+          path: artifacts_optee
           if-no-files-found: error
           retention-days: 14

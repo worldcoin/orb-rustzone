@@ -8,9 +8,5 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
+orb-x-optee.workspace = true
 tracing-subscriber = "0.3.22"
-
-[dependencies.orb-x-optee]
-# git = "https://github.com/worldcoin/orb-software.git"
-# branch = "main"
-path = "/home/ryan.butler/P/wc/orb-software/xtask/optee"
