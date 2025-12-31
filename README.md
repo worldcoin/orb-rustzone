@@ -1,6 +1,6 @@
-# orb-rustzone-ci
+# orb-rustzone
 
-CI for Rust Trusted Applications (TAs) for the OP-TEE OS.
+Rust Trusted Applications (TAs) for the OP-TEE OS.
 
 ## License
 
