@@ -43,9 +43,11 @@ on:
         description: The cargo profile to use
         required: true
         type: string
-    # secrets:
-      # ORB_GIT_HUB_TOKEN:
-      #   required: true
+    secrets:
+      GIT_HUB_TOKEN:
+        required: true
+      CACHIX_AUTH_TOKEN:
+        required: true
 
 env:
   CI_SOURCE_REPO: orb-software # TODO: change to orb-rustzone
