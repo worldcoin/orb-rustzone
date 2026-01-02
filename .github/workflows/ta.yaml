@@ -48,12 +48,18 @@ on:
         required: true
       CACHIX_AUTH_TOKEN:
         required: true
+      AWS_ROLE:
+        required: true
+      YEET_TEST:
+        required: true
 
 env:
   CI_SOURCE_REPO: orb-software # TODO: change to orb-rustzone
 
 permissions:
   contents: read
+  id-token: write
+  deployments: write
 
 jobs:
   check-inputs:
@@ -97,11 +103,11 @@ jobs:
           repository: worldcoin/${{ env.CI_SOURCE_REPO }}
           ref: ${{ inputs.source }}
           path: ./${{ env.CI_SOURCE_REPO }}
-          token: ${{ secrets.GIT_HUB_TOKEN }}
+          # token: ${{ secrets.GIT_HUB_TOKEN }}
           lfs: false
       - uses: cachix/install-nix-action@0b0e072294b088b73964f1d72dfdac0951439dbd # pin@v31.8.4
-        with:
-          github_access_token: ${{ secrets.GIT_HUB_TOKEN }}
+        # with:
+        #   github_access_token: ${{ secrets.GIT_HUB_TOKEN }}
       - uses: cachix/cachix-action@ad2ddac53f961de1989924296a1f236fcfbaa4fc # pin@v15
         # not on prod to eliminate privilege escalation via cachix cache injection
         if: ${{ inputs.target_env }} == 'stage'
@@ -147,10 +153,10 @@ jobs:
     name: Sign
     runs-on: ubuntu-24.04
     needs: [check-inputs, build]
+    environment: stage
     env:
       CI_TARGET_ENV: ${{ inputs.target_env }}
-    permissions:
-      contents: read
+    permissions: write-all
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # pin@v6.0.1
       - uses: cachix/install-nix-action@0b0e072294b088b73964f1d72dfdac0951439dbd # pin@v31.8.4
@@ -165,6 +171,13 @@ jobs:
         uses: Swatinem/rust-cache@98c8021b550208e191a6a3145459bfc9fb29c4c0 # pin@v2.8.0
         with:
           key: custom-${{ hashFiles('**/*.nix', 'flake.lock') }}
+      - run: echo "has secret? ${{ secrets.YEET_TEST != '' }}"
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@61815dcd50bd041e203e49132bacad1fd04d2708 # pin@v5.1.1
+        with:
+          aws-region: eu-central-1
+          role-to-assume: ${{ secrets.AWS_ROLE }}
+
       - name: Print environment
         run: |
           uname -a
