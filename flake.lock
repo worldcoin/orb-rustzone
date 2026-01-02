@@ -104,11 +104,11 @@
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1766125104,
-        "narHash": "sha256-l/YGrEpLromL4viUo5GmFH3K5M1j0Mb9O+LiaeCPWEM=",
+        "lastModified": 1767273430,
+        "narHash": "sha256-kDpoFwQ8GLrPiS3KL+sAwreXrph2KhdXuJzo5+vSLoo=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "7d853e518814cca2a657b72eeba67ae20ebf7059",
+        "rev": "76eec3925eb9bbe193934987d3285473dbcfad50",
         "type": "github"
       },
       "original": {
@@ -215,11 +215,11 @@
         "uv2nix": "uv2nix"
       },
       "locked": {
-        "lastModified": 1766226494,
-        "narHash": "sha256-oq5LvRBuP/P7zIuhBmOwnnvVLxnf7q36ghnyE9f7JJQ=",
+        "lastModified": 1767395674,
+        "narHash": "sha256-JUWMIryfacLy91J2MbLAkjv715EhejmWFYhlycQcrtk=",
         "owner": "worldcoin",
         "repo": "orb-software",
-        "rev": "d5688daf568a222d32a6a9db0276d6989e1bdf5b",
+        "rev": "a6c4f3aefc56d0e2f2d62a3e414f59c8e5900f32",
         "type": "github"
       },
       "original": {
