@@ -1,0 +1,28 @@
+name: Trigger TA
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - prod
+    tags:
+      - '**'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Rust CI
+    uses: worldcoin/orb-rustzone/.github/workflows/ta.yaml@ryanbutler-orbs-1219-ta-signing-in-ci
+    with:
+      target_env: stage
+      source: ${{ github.sha }}
+      cargo_profile: artifact
+    permissions: write-all
+    secrets:
+      GIT_HUB_TOKEN: ${{ secrets.ORB_GIT_HUB_TOKEN }}
+      CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
+      YEET_TEST: ${{ secrets.YEET_TEST }}
+      AWS_ROLE: ${{ secrets.AWS_ROLE }}
+

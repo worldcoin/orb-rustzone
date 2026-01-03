@@ -48,12 +48,18 @@ on:
         required: true
       CACHIX_AUTH_TOKEN:
         required: true
+      AWS_ROLE:
+        required: true
+      YEET_TEST:
+        required: true
 
 env:
   CI_SOURCE_REPO: orb-software # TODO: change to orb-rustzone
 
 permissions:
   contents: read
+  id-token: write
+  deployments: write
 
 jobs:
   check-inputs:
@@ -88,7 +94,6 @@ jobs:
     needs: [check-inputs]
     env:
       CI_PROFILE: ${{ inputs.cargo_profile }}
-      CI_TARGET_ENV: ${{ inputs.target_env }}
     permissions:
       contents: read
     steps:
@@ -98,14 +103,14 @@ jobs:
           repository: worldcoin/${{ env.CI_SOURCE_REPO }}
           ref: ${{ inputs.source }}
           path: ./${{ env.CI_SOURCE_REPO }}
-          token: ${{ secrets.GIT_HUB_TOKEN }}
+          # token: ${{ secrets.GIT_HUB_TOKEN }}
           lfs: false
       - uses: cachix/install-nix-action@0b0e072294b088b73964f1d72dfdac0951439dbd # pin@v31.8.4
-        with:
-          github_access_token: ${{ secrets.GIT_HUB_TOKEN }}
+        # with:
+        #   github_access_token: ${{ secrets.GIT_HUB_TOKEN }}
       - uses: cachix/cachix-action@ad2ddac53f961de1989924296a1f236fcfbaa4fc # pin@v15
         # not on prod to eliminate privilege escalation via cachix cache injection
-        if: ${{ inputs.target_env }} == 'stage' 
+        if: ${{ inputs.target_env }} == 'stage'
         continue-on-error: true
         with:
           name: worldcoin
@@ -142,3 +147,59 @@ jobs:
           path: artifacts_optee
           if-no-files-found: error
           retention-days: 14
+
+
+  sign:
+    name: Sign
+    runs-on: ubuntu-24.04
+    needs: [check-inputs, build]
+    environment: stage
+    env:
+      CI_TARGET_ENV: ${{ inputs.target_env }}
+    permissions: write-all
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # pin@v6.0.1
+      - uses: cachix/install-nix-action@0b0e072294b088b73964f1d72dfdac0951439dbd # pin@v31.8.4
+      - uses: cachix/cachix-action@ad2ddac53f961de1989924296a1f236fcfbaa4fc # pin@v15
+        # not on prod to eliminate privilege escalation via cachix cache injection
+        if: ${{ inputs.target_env }} == 'stage'
+        continue-on-error: true
+        with:
+          name: worldcoin
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+      - name: Cache cargo dependencies
+        uses: Swatinem/rust-cache@98c8021b550208e191a6a3145459bfc9fb29c4c0 # pin@v2.8.0
+        with:
+          key: custom-${{ hashFiles('**/*.nix', 'flake.lock') }}
+      - run: echo "has secret? ${{ secrets.YEET_TEST != '' }}"
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@61815dcd50bd041e203e49132bacad1fd04d2708 # pin@v5.1.1
+        with:
+          aws-region: eu-central-1
+          role-to-assume: ${{ secrets.AWS_ROLE }}
+
+      - name: Print environment
+        run: |
+          uname -a
+          nix develop -c env
+
+      - name: Download artifacts from build step
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # pin@v7.0.0
+        with:
+          name: ta_build
+          path: build_artifacts
+      - name: Inspect downloaded artifacts
+        run: |
+          set -Eeuxo pipefail
+          ls -alhR build_artifacts 
+
+      - name: Optee TA Sign
+        run: |
+          set -Eeuxo pipefail
+          # TODO: ORBS-1212
+          mkdir sign_artifacts
+          nix develop -c \
+            cargo x optee ta sign \
+              --out-dir sign_artifacts \
+              file \
+              --path build_artifacts/orb-secure-storage-ta
