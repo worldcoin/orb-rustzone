@@ -1,5 +1,5 @@
 [project]
-name = "optee-build-scripts"
+name = "python-deps"
 version = "0.0.0"
 description = "venv for the optee build scripts"
 requires-python = ">=3.12"
