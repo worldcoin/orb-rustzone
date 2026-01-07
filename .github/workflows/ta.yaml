@@ -1,11 +1,6 @@
-# 1. Check out orb-rustzone as subdirectory 
-# 2. Install nix and cachix
-# 3. Nix print env vars (of orb-rustzone-ci, not subdir)
-# 4. Execute cargo x optee sign (from parent orb-rustzone-ci xtask)
-
-# This worfklow is written such that the caller is able to be untrusted (with exception
 name: TA CI
 on:
+  pull_request:
   workflow_dispatch:
     inputs:
       target_env:   
@@ -18,9 +13,8 @@ on:
           - prod
       source:
         description: The git ref to build and sign
-        required: true
+        required: false
         type: string
-        default: main
       cargo_profile:
         description: The cargo profile to use
         required: true
@@ -43,17 +37,11 @@ on:
         description: The cargo profile to use
         required: true
         type: string
-    secrets:
-      GIT_HUB_TOKEN:
-        required: true
-      CACHIX_AUTH_TOKEN:
-        required: true
 
 env:
-  CI_SOURCE_REPO: orb-software # TODO: change to orb-rustzone
+  CI_SOURCE_REPO: orb-rustzone # TODO: change to orb-rustzone
 
-permissions:
-  contents: read
+permissions: {} # perms get declared on jobs instead
 
 jobs:
   check-inputs:
@@ -63,8 +51,8 @@ jobs:
       # To avoid injection in bash, we assign any input processed by the shell to env
       # vars here first. This also "clears" their use by other jobs.
       # https://docs.github.com/en/actions/reffooerence/security/secure-use#use-an-intermediate-environment-variable
-      CI_PROFILE: ${{ inputs.cargo_profile }}
-      CI_TARGET_ENV: ${{ inputs.target_env }}
+      CI_PROFILE: ${{ inputs.cargo_profile || 'artifact' }}
+      CI_TARGET_ENV: ${{ inputs.target_env || 'stage' }}
     permissions: {} # No permissions
     steps:
       - name: Ensure target_env is valid
@@ -87,8 +75,7 @@ jobs:
     runs-on: ubuntu-24.04
     needs: [check-inputs]
     env:
-      CI_PROFILE: ${{ inputs.cargo_profile }}
-      CI_TARGET_ENV: ${{ inputs.target_env }}
+      CI_PROFILE: ${{ inputs.cargo_profile || 'artifact' }}
     permissions:
       contents: read
     steps:
@@ -96,16 +83,16 @@ jobs:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # pin@v6.0.1
         with:
           repository: worldcoin/${{ env.CI_SOURCE_REPO }}
-          ref: ${{ inputs.source }}
+          ref: ${{ inputs.source || github.sha }}
           path: ./${{ env.CI_SOURCE_REPO }}
-          token: ${{ secrets.GIT_HUB_TOKEN }}
+          # token: ${{ secrets.GIT_HUB_TOKEN }}
           lfs: false
       - uses: cachix/install-nix-action@0b0e072294b088b73964f1d72dfdac0951439dbd # pin@v31.8.4
-        with:
-          github_access_token: ${{ secrets.GIT_HUB_TOKEN }}
+        # with:
+        #   github_access_token: ${{ secrets.GIT_HUB_TOKEN }}
       - uses: cachix/cachix-action@ad2ddac53f961de1989924296a1f236fcfbaa4fc # pin@v15
         # not on prod to eliminate privilege escalation via cachix cache injection
-        if: ${{ inputs.target_env }} == 'stage' 
+        if: ${{ inputs.target_env || 'stage' }} == 'stage'
         continue-on-error: true
         with:
           name: worldcoin
@@ -140,5 +127,163 @@ jobs:
           # general like "artifacts"
           name: ta_build
           path: artifacts_optee
+          if-no-files-found: error
+          retention-days: 14
+
+
+  sign:
+    name: Sign
+    runs-on: ubuntu-24.04
+    needs: [check-inputs, build]
+    environment: stage
+    env:
+      CI_TARGET_ENV: ${{ inputs.target_env || 'stage' }}
+      CI_PROFILE: ${{ inputs.cargo_profile || 'artifact' }}
+    # permissions: 
+    #   contents: read
+    #   id-token: write
+    permissions: write-all
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # pin@v6.0.1
+      - uses: cachix/install-nix-action@0b0e072294b088b73964f1d72dfdac0951439dbd # pin@v31.8.4
+      - uses: cachix/cachix-action@ad2ddac53f961de1989924296a1f236fcfbaa4fc # pin@v15
+        # not on prod to eliminate privilege escalation via cachix cache injection
+        if: ${{ inputs.target_env || 'stage' }} == 'stage'
+        continue-on-error: true
+        with:
+          name: worldcoin
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+      - name: Cache cargo dependencies
+        uses: Swatinem/rust-cache@98c8021b550208e191a6a3145459bfc9fb29c4c0 # pin@v2.8.0
+        with:
+          key: custom-${{ hashFiles('**/*.nix', 'flake.lock') }}
+
+      - name: Print environment
+        run: |
+          uname -a
+          nix develop -c env
+
+      - name: Download artifacts from build step
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # pin@v7.0.0
+        with:
+          name: ta_build
+          path: build_artifacts
+      - name: Inspect downloaded artifacts
+        run: |
+          set -Eeuxo pipefail
+          ls -alhR build_artifacts
+
+      - run: echo "has AWS_ROLE secret? ${{ secrets.AWS_ROLE != '' }}"
+      - name: Show OIDC claims (right before assume)
+        env:
+          AUDIENCE: "sts.amazonaws.com"
+        run: |
+          TOKEN_JSON=$(curl -s -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=$AUDIENCE")
+          ID_TOKEN=$(echo "$TOKEN_JSON" | jq -r .value)
+          echo "$ID_TOKEN" | awk -F. '{print $2}' | base64 -d 2>/dev/null | jq -r
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@61815dcd50bd041e203e49132bacad1fd04d2708 # pin@v5.1.1
+        with:
+          aws-region: eu-central-1
+          role-to-assume: ${{ secrets.AWS_ROLE }}
+      - name: Optee TA Sign
+        run: |
+          set -Eeuxo pipefail
+          # TODO: ORBS-1212
+          mkdir sign_artifacts
+          nix develop -c \
+            cargo x optee ta sign \
+              --out-dir sign_artifacts \
+              file \
+              --path build_artifacts/orb-secure-storage-ta
+      
+      - name: Upload artifacts
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # pin@v4.3.3
+        with:
+          # upload v4 doesn't support writing multiple times to the same artifact name.
+          # so its important that we name it after the workflow and not something
+          # general like "artifacts"
+          name: ta_sign
+          path: sign_artifacts
+          if-no-files-found: error
+          retention-days: 14
+
+
+  deb:
+    name: Deb
+    runs-on: ubuntu-24.04
+    needs: [sign]
+    environment: stage
+    env:
+      CI_TARGET_ENV: ${{ inputs.target_env || 'stage' }}
+      CI_PROFILE: ${{ inputs.cargo_profile || 'artifact' }}
+    # permissions: 
+    #   contents: read
+    #   id-token: write
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # pin@v6.0.1
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # pin@v6.0.1
+        with:
+          repository: worldcoin/${{ env.CI_SOURCE_REPO }}
+          ref: ${{ inputs.source || github.sha }}
+          path: ./${{ env.CI_SOURCE_REPO }}
+          # token: ${{ secrets.GIT_HUB_TOKEN }}
+          lfs: false
+      - uses: cachix/install-nix-action@0b0e072294b088b73964f1d72dfdac0951439dbd # pin@v31.8.4
+      - uses: cachix/cachix-action@ad2ddac53f961de1989924296a1f236fcfbaa4fc # pin@v15
+        # not on prod to eliminate privilege escalation via cachix cache injection
+        if: ${{ inputs.target_env || 'stage' }} == 'stage'
+        continue-on-error: true
+        with:
+          name: worldcoin
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+
+      - name: Print environment
+        run: |
+          uname -a
+          nix develop -c env
+
+      - name: Download artifacts from sign step
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # pin@v7.0.0
+        with:
+          name: ta_sign
+          path: sign_artifacts
+      - name: Inspect downloaded artifacts
+        run: |
+          set -Eeuxo pipefail
+          ls -alhR sign_artifacts
+
+      - name: Move artifact into typical cargo-deb directory
+        run: |
+          set -Eeuxo pipefail
+          target_dir="./${CI_SOURCE_REPO}/optee/target/aarch64-unknown-linux-gnu/${CI_PROFILE}/"
+          mkdir -p ${target_dir}
+          cp sign_artifacts/*.ta ${target_dir}
+      - name: Cargo deb
+        run: |
+          set -Eeuxo pipefail
+          # TODO: Move to its own job to minimize permissions
+          # TODO: ORBS-1212
+          nix develop -c \
+            cargo deb \
+              --manifest-path ./${CI_SOURCE_REPO}/optee/Cargo.toml \
+              --target aarch64-unknown-linux-gnu \
+              --profile ${CI_PROFILE} \
+              --no-build \
+              --no-strip \
+              -p orb-secure-storage-ta
+          mkdir deb_artifacts
+          cp ./${CI_SOURCE_REPO}/optee/target/aarch64-unknown-linux-gnu/debian/orb-secure-storage-ta*.deb deb_artifacts/orb-secure-storage-ta.deb
+      
+      - name: Upload artifacts
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # pin@v4.3.3
+        with:
+          # upload v4 doesn't support writing multiple times to the same artifact name.
+          # so its important that we name it after the workflow and not something
+          # general like "artifacts"
+          name: ta_deb
+          path: deb_artifacts
           if-no-files-found: error
           retention-days: 14
