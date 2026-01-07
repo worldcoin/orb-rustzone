@@ -1,0 +1,21 @@
+name: CI
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - prod
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  ta:
+    name: TA
+    uses: ./.github/workflows/ta.yaml
+    with:
+      prod: false
+      source: ${{ github.sha }}
+      cargo_profile: artifact
+    permissions: write-all
+    secrets: inherit
