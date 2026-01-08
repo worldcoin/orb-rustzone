@@ -1,0 +1,49 @@
+name: Release
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  ta:
+    name: TA
+    uses: ./.github/workflows/ta.yaml
+    with:
+      prod: true
+      source: ${{ github.sha }}
+      cargo_profile: artifact
+    permissions: write-all
+    secrets: inherit
+
+  release:
+    name: Create Release and Tag
+    runs-on: ubuntu-24.04
+    needs: [ta]
+    steps:
+      - name: Download TA Debs
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # pin@v7.0.0
+        with:
+          name: ta_deb
+          path: artifacts
+
+      - name: List Downloaded Artifacts
+        run: ls -aRsh artifacts
+
+      - name: Compute sha256 checksums
+        run: |
+          set -Eeuxo pipefail
+          pushd artifacts
+          for f in *; do
+            sha256sum "${f}" > "${f}.sha256"
+          done
+          ls -aRsh
+          popd
+
+      - name: Upload Release and Create Tag
+        uses: softprops/action-gh-release@de2c0eb89ae2a093876385947365aca7b0e5f844 # pin@v1
+        with:
+          tag_name: TODO
+          fail_on_unmatched_files: true
+          overwrite_files: false
+          files: artifacts/*
+
