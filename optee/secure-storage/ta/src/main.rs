@@ -128,7 +128,9 @@ fn response_to_params<T: ResponseT>(
 
 #[ta_create]
 fn create() -> TeeResult<()> {
-    info!("TA created");
+    let ta_version = optee_utee::property::TaVersion.get().expect("infallible");
+    info!("TA version {}", ta_version);
+
     Ok(())
 }
 

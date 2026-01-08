@@ -12,7 +12,7 @@ jobs:
     with:
       prod: false
       source: ${{ github.sha }}
-      cargo_profile: artifact
+      cargo_profile: release
     permissions:
       contents: read
       id-token: write
