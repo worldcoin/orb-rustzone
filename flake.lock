@@ -305,18 +305,14 @@
     "seekSdk": {
       "flake": false,
       "locked": {
-        "lastModified": 1756191916,
-        "narHash": "sha256-uGkr3duoHXNHxrpnIqfwp85hP6QoHZsWO7b46msYxXQ=",
-        "owner": "worldcoin",
-        "repo": "seek-thermal-sdk",
-        "rev": "63471a7cdc2cd06e1a317ec31c26b9da8aa8f883",
-        "type": "github"
+        "path": "./empty",
+        "type": "path"
       },
       "original": {
-        "owner": "worldcoin",
-        "repo": "seek-thermal-sdk",
-        "type": "github"
-      }
+        "path": "./empty",
+        "type": "path"
+      },
+      "parent": []
     },
     "systems": {
       "locked": {
