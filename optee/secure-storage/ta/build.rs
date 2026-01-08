@@ -6,7 +6,7 @@ fn main() -> Result<(), Error> {
     let mut config = TaConfig::new_default_with_cargo_env(
         orb_secure_storage_proto::StorageDomain::WifiProfiles.as_uuid(),
     )?;
-    config.ta_version = format!("git-{}", git_rev_parse()[..16]);
+    config.ta_version = format!("git-{}", &git_rev_parse()[..16]);
 
     optee_utee_build::build(RustEdition::Edition2024, config)
 }
