@@ -1,6 +1,8 @@
 name: Release
 on:
-  push: main
+  push: 
+    branches:
+      - 'main'
 
 permissions: {}
 
@@ -12,7 +14,9 @@ jobs:
       prod: ${{ github.ref_name == github.event.repository.default_branch }}
       source: ${{ github.sha }}
       cargo_profile: artifact
-    permissions: write-all
+    permissions:
+      contents: read
+      id-token: write
     secrets: inherit
 
   release:
