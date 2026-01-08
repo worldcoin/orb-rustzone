@@ -26,6 +26,10 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # pin@v6.0.1
+      - name: Compute truncated git commit
+        id: compute_version
+        run: echo "short_sha=${GITHUB_SHA:0:16}" >> "$GITHUB_OUTPUT"
       - name: Download TA Debs
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # pin@v7.0.0
         with:
@@ -45,11 +49,13 @@ jobs:
           ls -aRsh
           popd
 
+
+
       - name: Upload Release and Create Tag
         uses: softprops/action-gh-release@de2c0eb89ae2a093876385947365aca7b0e5f844 # pin@v1
         if: ${{ github.ref_name == github.event.repository.default_branch }}
         with:
-          tag_name: ${{ github.sha }}
+          tag_name: git-${{ steps.compute_version.outputs.short_sha }}
           fail_on_unmatched_files: true
           overwrite_files: false
           files: artifacts/*
