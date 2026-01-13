@@ -55,17 +55,28 @@ impl Ctx {
         debug!("{:?}", request);
         let GetRequest { key } = request;
         make_prefixed_key(&mut self.sbuf1, &self.client_info, &key);
-        let mut obj = PersistentObject::open(
+        let obj = PersistentObject::open(
             ObjectStorageConstants::Private,
             self.sbuf1.as_bytes(),
             DataFlag::ACCESS_READ,
-        )?;
+        )
+        .map(|ok| Some(ok))
+        .or_else(|err| {
+            if err.kind() == optee_utee::ErrorKind::ItemNotFound {
+                Ok(None)
+            } else {
+                Err(err)
+            }
+        })?;
 
-        read_obj(&mut obj, &mut self.buf1, &self.sbuf1)?;
+        let val = if let Some(mut obj) = obj {
+            read_obj(&mut obj, &mut self.buf1, &self.sbuf1)?;
+            Some(self.buf1.clone())
+        } else {
+            None
+        };
 
-        Ok(GetResponse {
-            val: self.buf1.clone(),
-        })
+        Ok(GetResponse { val })
     }
 
     fn handle_put(&mut self, request: PutRequest) -> TeeResult<PutResponse> {
@@ -77,27 +88,38 @@ impl Ctx {
             self.sbuf1.as_bytes(),
             DataFlag::ACCESS_WRITE | DataFlag::ACCESS_READ,
         );
-        let mut obj = match obj_result {
-            Ok(obj) => obj,
-            Err(err) if err.kind() == ErrorKind::ItemNotFound => {
+        let (mut obj, is_new) = match obj_result {
+            Ok(obj) => (obj, false),
+            Err(err) if err.kind() == ErrorKind::ItemNotFound => (
                 PersistentObject::create(
                     ObjectStorageConstants::Private,
                     self.sbuf1.as_bytes(),
                     DataFlag::ACCESS_WRITE | DataFlag::ACCESS_READ,
                     None,
                     &[],
-                )?
-            }
+                )?,
+                true,
+            ),
             Err(err) => return Err(err),
         };
-        debug!("opened successfully");
 
-        read_obj(&mut obj, &mut self.buf1, &self.sbuf1)?;
-        let prev_val = self.buf1.clone();
+        let mut prev_val = None;
+        if is_new {
+            debug!("created new persistent object successfully");
+        } else {
+            debug!("opened existing persistent object successfully");
+            read_obj(&mut obj, &mut self.buf1, &self.sbuf1)?;
+            debug!("read prev val");
+
+            prev_val = Some(self.buf1.clone())
+        }
 
         obj.seek(0, Whence::DataSeekSet)?; // truncate does not change seek position
+        debug!("seek zero");
         obj.truncate(0)?;
+        debug!("truncate");
         obj.write(&val)?;
+        debug!("write val");
 
         Ok(PutResponse { prev_val })
     }
@@ -118,10 +140,12 @@ fn response_to_params<T: ResponseT>(
     params: &mut Parameters,
 ) -> TeeResult<()> {
     let mut presponse = unsafe { params.1.as_memref() }?;
-    let nbytes = response
-        .serialize(presponse.buffer())
+    debug!("after presponse");
+    let nbytes = ResponseT::serialize(&response, presponse.buffer())
         .map_err(|BufferTooSmallErr {}| TeeError::new(ErrorKind::ShortBuffer))?;
+    debug!("after serialize");
     presponse.set_updated_size(nbytes);
+    debug!("after update size");
 
     Ok(())
 }
@@ -136,7 +160,7 @@ fn create() -> TeeResult<()> {
 
 #[ta_open_session]
 fn open_session(params: &mut Parameters, ctx: &mut Ctx) -> TeeResult<()> {
-    trace!("TA open session");
+    debug!("TA open session");
     ctx.client_info = match open_session_inner(params) {
         Ok(client_info) => client_info,
         Err(err) => {

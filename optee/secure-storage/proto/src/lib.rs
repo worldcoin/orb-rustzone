@@ -13,10 +13,24 @@ pub enum CommandId {
     Get = 2,
 }
 
-pub trait ResponseT: Sized {
-    type DeserializeErr: core::error::Error + Send + Sync + 'static;
-    fn deserialize<B: AsRef<[u8]>>(buf: B) -> Result<Self, Self::DeserializeErr>;
-    fn serialize(&self, out_buf: &mut [u8]) -> Result<usize, BufferTooSmallErr>;
+pub trait ResponseT: Sized + serde::Serialize + for<'a> serde::Deserialize<'a> {
+    fn deserialize<B: AsRef<[u8]>>(
+        buf: B,
+    ) -> Result<Self, impl core::error::Error + Send + Sync + 'static> {
+        serde_json::from_slice(buf.as_ref())
+    }
+
+    fn serialize(&self, out_buf: &mut [u8]) -> Result<usize, BufferTooSmallErr> {
+        let serialized = serde_json::to_vec(self).expect("infallible");
+        let nbytes = serialized.len();
+        if out_buf.len() < nbytes {
+            return Err(BufferTooSmallErr);
+        }
+        let out_buf = &mut out_buf[0..nbytes];
+        out_buf.copy_from_slice(&serialized);
+
+        Ok(nbytes)
+    }
 }
 
 pub trait RequestT: Sized + serde::Serialize + for<'a> serde::Deserialize<'a> {
@@ -69,30 +83,11 @@ impl RequestT for PutRequest {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PutResponse {
-    // TODO: Make it an option
-    pub prev_val: Vec<u8>, // returns the previously stored value (or an empty vec)
+    /// returns the previously stored value (or None if no prior value existed)
+    pub prev_val: Option<Vec<u8>>,
 }
 
-impl ResponseT for PutResponse {
-    type DeserializeErr = core::convert::Infallible;
-
-    fn deserialize<B: AsRef<[u8]>>(buf: B) -> Result<Self, Self::DeserializeErr> {
-        Ok(PutResponse {
-            prev_val: buf.as_ref().to_vec(),
-        })
-    }
-
-    fn serialize(&self, out_buf: &mut [u8]) -> Result<usize, BufferTooSmallErr> {
-        let nbytes = self.prev_val.len();
-        if out_buf.len() < nbytes {
-            return Err(BufferTooSmallErr);
-        }
-        let out_buf = &mut out_buf[0..nbytes];
-        out_buf.copy_from_slice(&self.prev_val);
-
-        Ok(nbytes)
-    }
-}
+impl ResponseT for PutResponse {}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct GetRequest {
@@ -111,30 +106,10 @@ impl RequestT for GetRequest {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct GetResponse {
-    // TODO: Make it an option
-    pub val: Vec<u8>,
+    pub val: Option<Vec<u8>>,
 }
 
-impl ResponseT for GetResponse {
-    type DeserializeErr = core::convert::Infallible;
-
-    fn deserialize<B: AsRef<[u8]>>(buf: B) -> Result<Self, Self::DeserializeErr> {
-        Ok(GetResponse {
-            val: buf.as_ref().to_vec(),
-        })
-    }
-
-    fn serialize(&self, out_buf: &mut [u8]) -> Result<usize, BufferTooSmallErr> {
-        let nbytes = self.val.len();
-        if out_buf.len() < nbytes {
-            return Err(BufferTooSmallErr);
-        }
-        let out_buf = &mut out_buf[0..nbytes];
-        out_buf.copy_from_slice(&self.val);
-
-        Ok(nbytes)
-    }
-}
+impl ResponseT for GetResponse {}
 
 /// Different domains for storage. Each domain maps to a different TA with its storage
 /// isolated from other domains.
