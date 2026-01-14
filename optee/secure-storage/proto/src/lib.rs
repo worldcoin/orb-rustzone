@@ -72,7 +72,7 @@ pub struct PutRequest {
 }
 
 impl RequestT for PutRequest {
-    const MAX_RESPONSE_SIZE: u32 = 1024;
+    const MAX_RESPONSE_SIZE: u32 = 1024 * 1024;
 
     type Response = PutResponse;
 
@@ -95,7 +95,7 @@ pub struct GetRequest {
 }
 
 impl RequestT for GetRequest {
-    const MAX_RESPONSE_SIZE: u32 = 1024;
+    const MAX_RESPONSE_SIZE: u32 = 1024 * 1024;
 
     type Response = GetResponse;
 
