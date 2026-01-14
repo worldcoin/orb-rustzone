@@ -9,4 +9,5 @@ rust-version.workspace = true
 [dependencies]
 num_enum = { version = "0.7.5", default-features = false }
 serde = { workspace = true, features = ["derive", "alloc"] }
+serde_json = { workspace = true, features = ["alloc"] }
 thiserror = { workspace = true, default-features = false }

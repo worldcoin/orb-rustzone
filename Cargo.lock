@@ -660,7 +660,6 @@ checksum = "384b8ab6d37215f3c5301a95a4accb5d64aa607f1fcb26a11b5303878451b4fe"
 [[package]]
 name = "orb-x-optee"
 version = "0.0.1"
-source = "git+https://github.com/worldcoin/orb-software?branch=main#4125304a132b2d8cbb9a0326b5c73c9f039b65cb"
 dependencies = [
  "cargo_metadata",
  "clap",
