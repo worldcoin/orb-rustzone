@@ -52,7 +52,7 @@ fn make_prefixed_key(out: &mut String, client_info: &ClientInfo, user_key: &str)
 
 impl Ctx {
     fn handle_get(&mut self, request: GetRequest) -> TeeResult<GetResponse> {
-        debug!("{:?}", request);
+        debug!("GetRequest: key={}", request.key);
         let GetRequest { key } = request;
         make_prefixed_key(&mut self.sbuf1, &self.client_info, &key);
         let obj = PersistentObject::open(
@@ -80,7 +80,11 @@ impl Ctx {
     }
 
     fn handle_put(&mut self, request: PutRequest) -> TeeResult<PutResponse> {
-        debug!("{:?}", request);
+        debug!(
+            "PutRequest: key={}, value_len={}",
+            request.key,
+            request.val.len()
+        );
         let PutRequest { key, val } = request;
         make_prefixed_key(&mut self.sbuf1, &self.client_info, &key);
         let obj_result = PersistentObject::open(
