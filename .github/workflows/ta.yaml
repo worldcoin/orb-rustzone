@@ -71,7 +71,7 @@ jobs:
 
   build:
     name: Build
-    runs-on: ubuntu-24.04
+    runs-on: public-ubuntu-24.04-32core
     needs: [check-inputs]
     env:
       CI_PROFILE: ${{ inputs.cargo_profile }}
