@@ -8,6 +8,7 @@ fn main() -> Result<(), Error> {
     )?;
     config.ta_version = format!("git-{}", &git_rev_parse()[..16]);
     config.trace_level = 3;
+    config.ta_data_size = 2 * 1024 * 1024;
 
     optee_utee_build::build(RustEdition::Edition2024, config)
 }

@@ -215,11 +215,11 @@
         "uv2nix": "uv2nix"
       },
       "locked": {
-        "lastModified": 1767732197,
-        "narHash": "sha256-8bImxlXyCzrWdO87Pk45JzkQSmWouc74xgO6SoMrlwc=",
+        "lastModified": 1768418054,
+        "narHash": "sha256-X/K6lGXq74GwFJ4Q3o/bBvqxbUanj9OLiOvdWxIUBi0=",
         "owner": "worldcoin",
         "repo": "orb-software",
-        "rev": "a92176cf5fdf3d2ff7af598d6eec4a00ddd7c94b",
+        "rev": "a84462675535c6f916aaffc6a76430b4a68e2d21",
         "type": "github"
       },
       "original": {
