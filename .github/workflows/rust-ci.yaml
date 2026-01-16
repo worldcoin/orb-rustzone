@@ -75,10 +75,14 @@ jobs:
 
       - name: Check licenses
         run: |
-          nix develop -c \
-            cargo deny check licenses
+          set -Eeuxo pipefail
+          nix develop -c cargo deny check licenses
+          cd optee/
+          nix develop -c cargo deny check licenses
 
       - name: Check security advisories
         run: |
-          nix develop -c \
-            cargo deny check advisories
+          set -Eeuxo pipefail
+          nix develop -c cargo deny check advisories
+          cd optee/
+          nix develop -c cargo deny check advisories
