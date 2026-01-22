@@ -7,7 +7,7 @@ fn main() -> Result<(), Error> {
         orb_secure_storage_proto::StorageDomain::WifiProfiles.as_uuid(),
     )?;
     config.ta_version = format!("git-{}", &git_rev_parse()[..16]);
-    config.trace_level = 3;
+    config.trace_level = 1;
     config.ta_data_size = 2 * 1024 * 1024;
 
     optee_utee_build::build(RustEdition::Edition2024, config)
