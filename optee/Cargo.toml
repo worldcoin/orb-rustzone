@@ -11,13 +11,22 @@ rust-version = "1.91.1" # See rust-toolchain.toml
 
 [workspace.dependencies]
 anyhow = { version = "1.0.100", default-features = false }
-optee-utee = "0.7.0"
-optee-utee-build = "0.7.0"
-optee-utee-sys = "0.7.0"
 serde = { version = "1.0.228", default-features = false }
 serde_json = { version = "1.0.145", default-features = false }
 thiserror = { version = "2.0.17", default-features = false }
 uuid = { version = "1.19.0", default-features = false }
+
+[workspace.dependencies.optee-utee]
+git = "https://github.com/apache/teaclave-trustzone-sdk"
+tag = "v0.8.0-rc.1"
+
+[workspace.dependencies.optee-utee-build]
+git = "https://github.com/apache/teaclave-trustzone-sdk"
+tag = "v0.8.0-rc.1"
+
+[workspace.dependencies.optee-utee-sys]
+git = "https://github.com/apache/teaclave-trustzone-sdk"
+tag = "v0.8.0-rc.1"
 
 # What we use when producing artifacts to distribute
 [profile.artifact]

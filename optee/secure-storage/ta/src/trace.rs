@@ -2,6 +2,7 @@
 
 #[repr(u8)]
 pub enum TraceLevel {
+    Msg = 0,
     Error = 1,
     Info = 2,
     Debug = 3,
@@ -18,6 +19,14 @@ impl TraceExt for optee_utee::trace::Trace {
     fn set_level(level: TraceLevel) {
         Self::set_level(level as i32);
     }
+}
+
+#[macro_export]
+macro_rules! msg {
+    ($($arg:tt)*) => {{
+        <optee_utee::trace::Trace as $crate::trace::TraceExt>::set_level($crate::trace::TraceLevel::Msg);
+        optee_utee::trace_println!($($arg)*)
+    }};
 }
 
 #[macro_export]
