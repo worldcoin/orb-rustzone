@@ -20,7 +20,7 @@ thiserror = { workspace = true, default-features = false }
 uuid = { workspace = true, features = ["v5"] }
 
 [build-dependencies]
-optee-utee-build = "0.7.0"
+optee-utee-build.workspace = true
 orb-secure-storage-proto.path = "../proto"
 
 [package.metadata.orb-optee]
