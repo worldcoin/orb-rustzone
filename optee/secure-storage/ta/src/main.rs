@@ -23,7 +23,7 @@ use optee_utee::{
 };
 use orb_secure_storage_proto::{
     BufferTooSmallErr, CommandId, GetRequest, GetResponse, PutRequest, PutResponse,
-    RequestT, ResponseT,
+    RequestT, ResponseT, VersionRequest, VersionResponse,
 };
 use uuid::Uuid;
 
@@ -60,7 +60,7 @@ impl Ctx {
             self.sbuf1.as_bytes(),
             DataFlag::ACCESS_READ,
         )
-        .map(|ok| Some(ok))
+        .map(Some)
         .or_else(|err| {
             if err.kind() == optee_utee::ErrorKind::ItemNotFound {
                 Ok(None)
@@ -126,6 +126,16 @@ impl Ctx {
         debug!("write val");
 
         Ok(PutResponse { prev_val })
+    }
+
+    fn handle_version(
+        &mut self,
+        _request: VersionRequest,
+    ) -> TeeResult<VersionResponse> {
+        debug!("VersionRequest: ()");
+        let ta_version = optee_utee::property::TaVersion.get().expect("infallible");
+
+        Ok(VersionResponse(ta_version))
     }
 }
 
@@ -214,6 +224,10 @@ fn invoke_command(
         CommandId::Get => {
             response_to_params(ctx.handle_get(request_from_params(params)?)?, params)
         }
+        CommandId::Version => response_to_params(
+            ctx.handle_version(request_from_params(params)?)?,
+            params,
+        ),
     }
 }
 

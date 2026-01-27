@@ -1,6 +1,7 @@
 // https://github.com/OP-TEE/optee_os/blob/764994e40843a9d734bf7df504d0f038fbff7be9/lib/libutils/ext/include/trace_levels.h#L26-L31
 
 #[repr(u8)]
+#[expect(dead_code)]
 pub enum TraceLevel {
     Msg = 0,
     Error = 1,
