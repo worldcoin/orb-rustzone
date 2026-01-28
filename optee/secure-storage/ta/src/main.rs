@@ -7,29 +7,34 @@ extern crate alloc;
 
 include!(concat!(env!("OUT_DIR"), "/user_ta_header.rs"));
 
+use alloc::borrow::ToOwned;
+use alloc::collections::btree_set::BTreeSet;
 use alloc::format;
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use anyhow::{bail, Context, Result};
-use core::{fmt::Write as _, write};
+use core::fmt::Write as _;
 use optee_utee::object::PersistentObject;
 use optee_utee::{
     property::PropertyKey as _, ta_close_session, ta_create, ta_destroy,
     ta_invoke_command, ta_open_session,
 };
 use optee_utee::{
-    DataFlag, Error as TeeError, ErrorKind, GenericObject, LoginType,
+    DataFlag, Error as TeeError, ErrorKind, GenericObject, LoginType, ObjectInfo,
     ObjectStorageConstants, Parameters, Result as TeeResult, Whence,
 };
 use orb_secure_storage_proto::{
-    BufferTooSmallErr, CommandId, GetRequest, GetResponse, PutRequest, PutResponse,
-    RequestT, ResponseT, VersionRequest, VersionResponse,
+    BufferTooSmallErr, CommandId, GetRequest, GetResponse, Key, ListRequest,
+    ListResponse, ParseKeyErr, PutRequest, PutResponse, RequestT, ResponseT,
+    VersionRequest, VersionResponse,
 };
 use uuid::Uuid;
 
 // The fact that the optee macros don't themselves unambiguously reference box should
 // probably be fixed upstream
 use alloc::boxed::Box;
+
+const STORAGE_ID: ObjectStorageConstants = ObjectStorageConstants::Private;
 
 #[derive(Default)]
 struct Ctx {
@@ -39,24 +44,28 @@ struct Ctx {
     sbuf1: String,
 }
 
-fn make_prefixed_key(out: &mut String, client_info: &ClientInfo, user_key: &str) {
-    // keys cannot live in shared memory, so this also serve the role of copying
-    out.clear();
-    write!(
-        out,
-        "v=1,euid={:#x}/{user_key}",
-        client_info.effective_user_id
-    )
-    .expect("infallible");
-}
-
 impl Ctx {
+    fn make_prefixed_key(&mut self, user_key: &str) {
+        self.sbuf1.clear();
+        // keys cannot live in shared memory, so this also serve the role of copying
+        write!(
+            self.sbuf1,
+            "{}",
+            Key {
+                euid: self.client_info.effective_user_id,
+                user_key: user_key.to_owned(), // TODO: remove unnecessary clone
+            }
+        )
+        .expect("infallible");
+    }
+
     fn handle_get(&mut self, request: GetRequest) -> TeeResult<GetResponse> {
         debug!("GetRequest: key={}", request.key);
         let GetRequest { key } = request;
-        make_prefixed_key(&mut self.sbuf1, &self.client_info, &key);
+        self.make_prefixed_key(&key);
+
         let obj = PersistentObject::open(
-            ObjectStorageConstants::Private,
+            STORAGE_ID,
             self.sbuf1.as_bytes(),
             DataFlag::ACCESS_READ,
         )
@@ -86,9 +95,9 @@ impl Ctx {
             request.val.len()
         );
         let PutRequest { key, val } = request;
-        make_prefixed_key(&mut self.sbuf1, &self.client_info, &key);
+        self.make_prefixed_key(&key);
         let obj_result = PersistentObject::open(
-            ObjectStorageConstants::Private,
+            STORAGE_ID,
             self.sbuf1.as_bytes(),
             DataFlag::ACCESS_WRITE | DataFlag::ACCESS_READ,
         );
@@ -96,7 +105,7 @@ impl Ctx {
             Ok(obj) => (obj, false),
             Err(err) if err.kind() == ErrorKind::ItemNotFound => (
                 PersistentObject::create(
-                    ObjectStorageConstants::Private,
+                    STORAGE_ID,
                     self.sbuf1.as_bytes(),
                     DataFlag::ACCESS_WRITE | DataFlag::ACCESS_READ,
                     None,
@@ -136,6 +145,75 @@ impl Ctx {
         let ta_version = optee_utee::property::TaVersion.get().expect("infallible");
 
         Ok(VersionResponse(ta_version))
+    }
+
+    fn handle_list(&mut self, request: ListRequest) -> TeeResult<ListResponse> {
+        debug!(
+            "ListRequest: euid={:?}, prefix=\"{}\"",
+            request.euid, request.prefix
+        );
+        let ListRequest { euid, prefix } = request;
+
+        let mut enumerator = optee_utee::ObjectEnumHandle::allocate()?;
+        enumerator.start(STORAGE_ID as u32)?;
+        // TODO: maybe we should implement Default and upstream that.
+        let mut obj_info = ObjectInfo::from_raw(optee_utee_sys::TEE_ObjectInfo {
+            objectType: 0,
+            objectSize: 0,
+            maxObjectSize: 0,
+            objectUsage: 0,
+            dataSize: 0,
+            dataPosition: 0,
+            handleFlags: 0,
+        });
+        let mut obj_id =
+            [0u8; optee_utee::MiscellaneousConstants::TeeObjectIdMaxLen as usize];
+        let mut keys = BTreeSet::new();
+        /// For some reaso, get_next has an unused generic T.
+        struct Unused;
+        while let Ok(obj_id_len) =
+            enumerator.get_next::<Unused>(&mut obj_info, &mut obj_id)
+        {
+            let obj_id = &obj_id[..obj_id_len as usize];
+            let Ok(obj_id) = core::str::from_utf8(obj_id) else {
+                warn!("non utf8 persistent object id encountered, skipping it");
+                continue;
+            };
+
+            let key = match obj_id.parse::<Key>() {
+                Ok(key) => key,
+                Err(ParseKeyErr::InvalidSyntax) => {
+                    warn!("persistent object id had invalid syntax, got {}", obj_id);
+                    continue;
+                }
+                Err(ParseKeyErr::UnsupportedVersion) => {
+                    warn!(
+                        "persistent object id had unsupported version, got {}",
+                        obj_id
+                    );
+                    continue;
+                }
+            };
+
+            if let Some(euid) = euid
+                && key.euid != euid
+            {
+                continue;
+            }
+            if !key.user_key.starts_with(&prefix) {
+                continue;
+            }
+
+            if !keys.insert(key) {
+                error!(
+                    "multiple persistent objects with same key id encountered. This \
+                    shouldn't be possible!"
+                );
+                return Err(TeeError::new(ErrorKind::Generic));
+            }
+        }
+
+        Ok(ListResponse { keys })
     }
 }
 
@@ -228,6 +306,9 @@ fn invoke_command(
             ctx.handle_version(request_from_params(params)?)?,
             params,
         ),
+        CommandId::List => {
+            response_to_params(ctx.handle_list(request_from_params(params)?)?, params)
+        }
     }
 }
 

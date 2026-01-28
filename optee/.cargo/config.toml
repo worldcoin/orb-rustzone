@@ -6,7 +6,7 @@ target = "aarch64-unknown-linux-gnu"
 linker = "aarch64-unknown-linux-gnu-gcc"
 
 [unstable]
-build-std = ["core", "alloc", "compiler_builtins"]
+build-std = ["core", "alloc", "compiler_builtins", "std", "test"]
 build-std-features = ["compiler-builtins-mem"]
 
 [alias]

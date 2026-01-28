@@ -30,7 +30,12 @@ jobs:
           nix develop -c env
 
       - name: Check Rust formatting
-        run: cargo fmt --check --all
+        run: |
+          set -Eeuxo pipefail
+          nix develop -c cargo fmt --check --all
+          cd optee/
+          nix develop -c cargo fmt --check --all
+
 
   clippy:
     name: Clippy
@@ -54,8 +59,39 @@ jobs:
 
       - name: Clippy lints
         run: |
+          set -Eeuxo pipefail
           nix develop -c \
             cargo clippy --all --all-features --all-targets --no-deps -- -D warnings
+          cd optee/
+          nix develop -s RUSTC_BOOTSTRAP 1 -c \
+            cargo clippy --all --all-features --no-deps -- -D warnings
+
+  test:
+    name: Cargo Test
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # pin@v6.0.1
+      - uses: cachix/install-nix-action@0b0e072294b088b73964f1d72dfdac0951439dbd # pin@v31.8.4
+      - uses: cachix/cachix-action@ad2ddac53f961de1989924296a1f236fcfbaa4fc # pin@v15
+        continue-on-error: true
+        with:
+          name: worldcoin
+          authToken: ${{ secrets.CACHIX_AUTH_TOKEN }}
+      - name: Cache cargo dependencies
+        uses: Swatinem/rust-cache@98c8021b550208e191a6a3145459bfc9fb29c4c0 # pin@v2.8.0
+        with:
+          key: custom-${{ hashFiles('**/*.nix', 'flake.lock') }}
+      - name: Print environment
+        run: |
+          uname -a
+          nix develop -c env
+
+      - name: Build and run tests
+        run: |
+          set -Eeuxo pipefail
+          nix develop -c \
+            cargo test --all --all-features --no-fail-fast
+          # TODO: test optee
 
   cargo-deny:
     name: Cargo Deny
