@@ -2,7 +2,8 @@ name: Release
 on:
   push: 
     branches:
-      - 'main'
+      - 'ryanbutler-orbs-1278-auto-bump-orb-os-on-orb-rustzone-merge'
+      # - 'main'
 
 permissions: {}
 
@@ -49,8 +50,6 @@ jobs:
           ls -aRsh
           popd
 
-
-
       - name: Upload Release and Create Tag
         uses: softprops/action-gh-release@de2c0eb89ae2a093876385947365aca7b0e5f844 # pin@v1
         if: ${{ github.ref_name == github.event.repository.default_branch }}
@@ -59,3 +58,50 @@ jobs:
           fail_on_unmatched_files: true
           overwrite_files: false
           files: artifacts/*
+
+      - name: Checkout orb-os
+        uses: actions/checkout@v4
+        with:
+          repository: worldcoin/orb-os
+          # token: ${{ secrets.ORB_OS_PR_TOKEN }}
+          path: orb-os
+
+      - name: Update ORB_RUSTZONE in target files
+        working-directory: orb-os
+        shell: bash
+        run: |
+          set -Eeuxo pipefail
+          release_name='git-${{ steps.compute_version.outputs.short_sha }}'
+
+          # Build bash array "files" either from workflow_dispatch input (newline-separated)
+          # or from DEFAULT_BUMP_FILES (space-separated).
+          declare -a files=("diamond/common.sh")
+
+          # Update each file
+          for commonsh in "${files[@]}"; do
+            if [[ ! -f "$commonsh" ]]; then
+              echo "ERROR: file does not exist: $commonsh" >&2
+              exit 1
+            fi
+
+            # Replace only the value inside ORB_RUSTZONE="...".
+            regex='^(declare -rx[[:space:]]+ORB_RUSTZONE=")[^"]*(".*)$'
+            sed -i -E "s/${regex}/\1${release_name}\2/" "${commonsh}"
+
+            echo "Updated ${commonsh}:"
+            grep -n -E "${regex}" "$file"
+          done
+          git diff
+
+      - name: Create PR in orb-os
+        uses: peter-evans/create-pull-request@v6
+        with:
+          # token: ${{ secrets.ORB_OS_PR_TOKEN }}
+          path: orb-os
+          branch: bump-bot/orb-rustzone-${{ steps.compute_version.outputs.short_sha }}
+          commit-message: "chore: bump ORB_RUSTZONE to ${{ steps.compute_version.outputs.short_sha }}"
+          title: "chore: bump ORB_RUSTZONE to ${{ steps.compute_version.outputs.short_sha }}"
+          body: |
+            see title
+          base: main
+
