@@ -167,7 +167,7 @@ fn response_to_params<T: ResponseT>(
 #[ta_create]
 fn create() -> TeeResult<()> {
     let ta_version = optee_utee::property::TaVersion.get().expect("infallible");
-    msg!("TA version {}", ta_version);
+    error!("TA version {}", ta_version);
 
     Ok(())
 }
