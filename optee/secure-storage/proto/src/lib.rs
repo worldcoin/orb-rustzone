@@ -12,6 +12,7 @@ use serde::{Deserialize, Serialize};
 pub enum CommandId {
     Put = 1,
     Get = 2,
+    Version = 3,
 }
 
 pub trait ResponseT: Sized + serde::Serialize + for<'a> serde::Deserialize<'a> {
@@ -44,6 +45,7 @@ pub trait RequestT: Sized + serde::Serialize + for<'a> serde::Deserialize<'a> {
 pub enum Request {
     Put(PutRequest),
     Get(GetRequest),
+    Version(VersionRequest),
 }
 
 impl Request {
@@ -51,15 +53,16 @@ impl Request {
         match self {
             Request::Put(_) => CommandId::Put,
             Request::Get(_) => CommandId::Get,
+            Request::Version(_) => CommandId::Version,
         }
     }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum Response {
-    Ping,
     Put(PutResponse),
     Get(GetResponse),
+    Version(VersionResponse),
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -111,6 +114,24 @@ pub struct GetResponse {
 }
 
 impl ResponseT for GetResponse {}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct VersionRequest;
+
+impl RequestT for VersionRequest {
+    const MAX_RESPONSE_SIZE: u32 = 1024;
+
+    type Response = VersionResponse;
+
+    fn id(&self) -> CommandId {
+        CommandId::Version
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct VersionResponse(pub String);
+
+impl ResponseT for VersionResponse {}
 
 /// Different domains for storage. Each domain maps to a different TA with its storage
 /// isolated from other domains.
