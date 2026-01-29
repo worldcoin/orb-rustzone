@@ -3,61 +3,58 @@
 #[repr(u8)]
 #[expect(dead_code)]
 pub enum TraceLevel {
-    Msg = 0,
-    Error = 1,
+    /// optee refers to it as "msg"
+    Error = 0,
+    /// optee refers to it as "error"
+    Warn = 1,
     Info = 2,
     Debug = 3,
     /// optee refers to it as "flow"
     Trace = 4,
 }
 
-/// Extension trait to allow setting levels via [`TraceLevel`].
-pub trait TraceExt {
-    fn set_level(level: TraceLevel);
-}
-
-impl TraceExt for optee_utee::trace::Trace {
-    fn set_level(level: TraceLevel) {
-        Self::set_level(level as i32);
-    }
-}
-
+/// internal use only
+#[doc(hidden)]
 #[macro_export]
-macro_rules! msg {
-    ($($arg:tt)*) => {{
-        <optee_utee::trace::Trace as $crate::trace::TraceExt>::set_level($crate::trace::TraceLevel::Msg);
-        optee_utee::trace_println!($($arg)*)
+macro_rules! log {
+    ($level:expr, $($arg:tt)*) => {{
+        if ::optee_utee::trace::Trace::get_level() >= $level as _ {
+            ::optee_utee::trace_println!($($arg)*)
+        }
     }};
 }
 
 #[macro_export]
 macro_rules! error {
-    ($($arg:tt)*) => {{
-        <optee_utee::trace::Trace as $crate::trace::TraceExt>::set_level($crate::trace::TraceLevel::Error);
-        optee_utee::trace_println!($($arg)*)
-    }};
+    ($($arg:tt)*) => {
+        log!($crate::trace::TraceLevel::Error, $($arg)*)
+    }
+}
+
+#[macro_export]
+macro_rules! warn {
+    ($($arg:tt)*) => {
+        log!($crate::trace::TraceLevel::Warn, $($arg)*)
+    };
 }
 
 #[macro_export]
 macro_rules! info {
-    ($($arg:tt)*) => {{
-        <optee_utee::trace::Trace as $crate::trace::TraceExt>::set_level($crate::trace::TraceLevel::Info);
-        optee_utee::trace_println!($($arg)*)
-    }};
+    ($($arg:tt)*) => {
+        log!($crate::trace::TraceLevel::Info, $($arg)*)
+    };
 }
 
 #[macro_export]
 macro_rules! debug {
-    ($($arg:tt)*) => {{
-        <optee_utee::trace::Trace as $crate::trace::TraceExt>::set_level($crate::trace::TraceLevel::Debug);
-        optee_utee::trace_println!($($arg)*)
-    }};
+    ($($arg:tt)*) => {
+        log!($crate::trace::TraceLevel::Debug, $($arg)*)
+    };
 }
 
 #[macro_export]
 macro_rules! trace {
-    ($($arg:tt)*) => {{
-        <optee_utee::trace::Trace as $crate::trace::TraceExt>::set_level($crate::trace::TraceLevel::Trace);
-        optee_utee::trace_println!($($arg)*)
-    }};
+    ($($arg:tt)*) => {
+        log!($crate::trace::TraceLevel::Trace, $($arg)*)
+    };
 }
