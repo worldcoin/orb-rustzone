@@ -6,6 +6,10 @@ This repo does not contain the optee OS, CAs, or tee-supplicant.
 
 ## Build instuctions
 
+> [!NOTE]
+Cross compiling from macos is not currently supported for orb-rustzone. To get things
+> working, we recommend using a devcontainer.
+
 ### How to build TAs
 
 You must pass `RUSTC_BOOTSTRAP=1` in front of all your cargo commands to use
