@@ -10,6 +10,14 @@ This repo does not contain the optee OS, CAs, or tee-supplicant.
 Cross compiling from macos is not currently supported for orb-rustzone. To get things
 > working, we recommend using a devcontainer.
 
+> [!NOTE]
+> If you are on an aarch64 machine (for example on apple silicon), you may need to comment
+> out the following settings to `optee/.cargo/config.toml`:
+> ```toml
+> # [target.aarch64-unknown-linux-gnu]
+> # linker = "aarch64-unknown-linux-gnu-gcc"
+> ```
+
 ### How to build TAs
 
 You must pass `RUSTC_BOOTSTRAP=1` in front of all your cargo commands to use
