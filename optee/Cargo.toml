@@ -1,6 +1,11 @@
 # Separate workspace for TAs due to their unique build requirements
 [workspace]
-members = ["secure-storage/ta", "secure-storage/proto"]
+members = [
+    "secure-storage/ta",
+    "secure-storage/proto",
+    "camera-hmac/ta",
+    "camera-hmac/proto",
+]
 resolver = "3"
 
 [workspace.package]

@@ -29,7 +29,7 @@ Alternatively, you can call `cargo x optee ta build -p <your_optee_package>`.
 
 ### How to sign TAs
 
-`AWS_PROFILE=trustzone-stage cargo x optee ta sign -p <your_optee_package>`.
+`AWS_PROFILE=trustzone-stage cargo x optee ta sign crate -p <your_optee_package>`.
 Note that this assumes you have set up an aws profile called `trustzone-stage`
 or `trustzone-prod`. Try adding this to your `~/.aws/config` directory:
 

@@ -1,0 +1,30 @@
+[package]
+name = "orb-camera-hmac-ta"
+version = "0.0.0"
+authors = ["Worldcoin"]
+description = "OX05B1S camera frame HMAC authentication OPTEE Trusted Application"
+publish = false
+
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+optee-utee-sys.workspace = true
+optee-utee.workspace = true
+orb-camera-hmac-proto.path = "../proto"
+serde_json = { workspace = true, default-features = false, features = ["alloc"] }
+thiserror = { workspace = true, default-features = false }
+uuid = { workspace = true, features = ["v5"] }
+
+[build-dependencies]
+optee-utee-build = "0.7.0"
+orb-camera-hmac-proto.path = "../proto"
+
+[package.metadata.orb-optee]
+uuid_path = "../uuid.txt"
+
+[package.metadata.deb]
+assets = [["target/release/*.ta", "/usr/lib/optee_armtz/", "540"]]
