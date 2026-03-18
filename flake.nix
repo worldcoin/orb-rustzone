@@ -17,5 +17,6 @@
     # further be changed by users of your flake.
     flake-utils.lib.eachDefaultSystem (system: {
       devShells.default = orb-software.devShells.${system}.default;
+      formatter = orb-software.formatter.${system};
     });
 }

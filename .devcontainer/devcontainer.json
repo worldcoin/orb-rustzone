@@ -1,0 +1,24 @@
+// For format details, see https://aka.ms/devcontainer.json. For config options,
+{
+	"name": "Ubuntu",
+	"build": {
+		"dockerfile": "Dockerfile",
+		"context": "."
+	},
+	"remoteUser": "vscode",
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"rust-lang.rust-analyzer",
+				"tamasfe.even-better-toml",
+			]
+		}
+	},
+	"mounts": [
+		// Keep the rust target directory in a persistent docker volume instead of bind mount
+		"source=${localWorkspaceFolderBasename}-rust-target-vol,target=${containerWorkspaceFolder}/target,type=volume",
+		"source=${localWorkspaceFolderBasename}-rust-optee-target-vol,target=${containerWorkspaceFolder}/optee/target,type=volume",
+	],
+	// "overrideCommand": false, // Broken in devcontainer cli qwq https://github.com/devcontainers/cli/issues/816
+	"postCreateCommand": "sudo .devcontainer/docker-entrypoint.sh .devcontainer/postCreateCommand.sh"
+}
