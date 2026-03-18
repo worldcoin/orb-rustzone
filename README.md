@@ -7,12 +7,14 @@ This repo does not contain the optee OS, CAs, or tee-supplicant.
 ## Build instuctions
 
 > [!NOTE]
-Cross compiling from macos is not currently supported for orb-rustzone. To get things
-> working, we recommend using a devcontainer.
+> Cross compiling from macos is not currently supported for orb-rustzone. To get
+> things working, we recommend using a devcontainer. Command line users can run
+> `.devcontainer/run.sh`, which requires installing the devcontainer CLI (`nix
+> profile add nixpkgs#devcontainer` or `brew install devcontainer`).
 
 > [!NOTE]
-> If you are on an aarch64 machine (for example on apple silicon), you may need to comment
-> out the following settings to `optee/.cargo/config.toml`:
+> If you are on an aarch64 machine (for example on apple silicon), you may need
+> to comment out the following settings to `optee/.cargo/config.toml`:
 > ```toml
 > # [target.aarch64-unknown-linux-gnu]
 > # linker = "aarch64-unknown-linux-gnu-gcc"
@@ -27,12 +29,14 @@ Alternatively, you can call `cargo x optee ta build -p <your_optee_package>`.
 
 ### How to sign TAs
 
-`cargo x optee ta sign -p <your_optee_package>`. Note that this assumes you have set up
-an aws profile called `trustzone-stage` or `trustzone-prod`. Try adding this to your
-`~/.aws/config` directory:
+`AWS_PROFILE=trustzone-stage cargo x optee ta sign -p <your_optee_package>`.
+Note that this assumes you have set up an aws profile called `trustzone-stage`
+or `trustzone-prod`. Try adding this to your `~/.aws/config` directory:
 
-NOTE: Actual values are different, check [the docs](https://worldcoin.github.io/orb-software/aws-creds.html)
-for the real values.
+
+> [!NOTE]
+> Actual values are different, check [the docs](https://worldcoin.github.io/orb-software/aws-creds.html)
+> for the real values.
 
 ```ini
 [profile trustzone-stage]
@@ -46,6 +50,9 @@ sso_start_url = https://d-3333333333.awsapps.com/start/#
 sso_region = us-east-1
 sso_registration_scopes = sso:account:access
 ```
+
+Once your config is set up, you can log in with
+`AWS_PROFILE=trustzone-stage aws sso login --use-device-code`.
 
 Note that prod builds can only be done in CI, not by hand.
 
