@@ -8,7 +8,9 @@ This repo does not contain the optee OS, CAs, or tee-supplicant.
 
 > [!NOTE]
 Cross compiling from macos is not currently supported for orb-rustzone. To get things
-> working, we recommend using a devcontainer.
+> working, we recommend using a devcontainer. Command line users can run
+> `.devcontainer/run.sh`, which requires installing the devcontainer CLI
+> (`nix profile add nixpkgs#devcontainer` or `brew install devcontainer`).
 
 > [!NOTE]
 > If you are on an aarch64 machine (for example on apple silicon), you may need to comment
