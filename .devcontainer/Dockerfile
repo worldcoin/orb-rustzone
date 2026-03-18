@@ -6,27 +6,31 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     bash zsh git ca-certificates curl sudo xz-utils gosu \
  && rm -rf /var/lib/apt/lists/*
 
+
+# Create non-root devcontainer user
+RUN echo "ubuntu ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/ubuntu \
+    && chmod 0440 /etc/sudoers.d/ubuntu
+
 # Install Nix files, but no init integration.
 RUN curl -sSfL https://artifacts.nixos.org/nix-installer | \
     sh -s -- install linux \
       --init none \
       --extra-conf "sandbox = false" \
       --extra-conf "experimental-features = nix-command flakes" \
-      --extra-conf "allowed-users = *" \
-      --extra-conf "trusted-users = root vscode" \
+      --extra-conf "max-jobs = auto" \
       --no-confirm
 
-RUN groupadd -r nix-users
-RUN useradd -m -s /bin/bash vscode \
- && usermod -aG nix-users vscode \
- && echo 'vscode ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/90-vscode \
- && echo 'Defaults secure_path="/nix/var/nix/profiles/default/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"' >> /etc/sudoers.d/90-vscode \
- && chmod 0440 /etc/sudoers.d/90-vscode
+# Make Nix and direnv available in both bash and zsh shells
+RUN cat >> /etc/bash.bashrc <<'EOF'
+. /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
+eval "$(direnv hook bash)"
+EOF
+RUN cat >> /etc/zsh/zshrc <<'EOF'
+. /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh
+eval "$(direnv hook zsh)"
+EOF
 
-ENV PATH=/nix/var/nix/profiles/default/bin:$PATH
+USER ubuntu
+WORKDIR /home/ubuntu
 
-COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh
-
-ENTRYPOINT [ "/usr/local/bin/docker-entrypoint.sh" ]
-CMD [ "sleep", "infinity" ]
+CMD ["/bin/bash"]

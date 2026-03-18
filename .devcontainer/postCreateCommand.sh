@@ -2,8 +2,8 @@
 
 set -Eeuxo pipefail
 
-sudo chown vscode target
-sudo chown vscode optee/target
+sudo chown ubuntu target
+sudo chown ubuntu optee/target
 # This path is a magic string. See https://stackoverflow.com/a/60713369
 # sudo chown vscode /run/host-services/ssh-auth.sock
 

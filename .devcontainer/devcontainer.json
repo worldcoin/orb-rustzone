@@ -5,7 +5,7 @@
 		"dockerfile": "Dockerfile",
 		"context": "."
 	},
-	"remoteUser": "vscode",
+	"remoteUser": "ubuntu",
 	"customizations": {
 		"vscode": {
 			"extensions": [
@@ -20,5 +20,5 @@
 		"source=${localWorkspaceFolderBasename}-rust-optee-target-vol,target=${containerWorkspaceFolder}/optee/target,type=volume",
 	],
 	// "overrideCommand": false, // Broken in devcontainer cli qwq https://github.com/devcontainers/cli/issues/816
-	"postCreateCommand": "sudo .devcontainer/docker-entrypoint.sh .devcontainer/postCreateCommand.sh"
+	"postCreateCommand": ".devcontainer/postCreateCommand.sh"
 }

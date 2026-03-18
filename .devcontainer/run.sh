@@ -21,5 +21,5 @@ CONTAINER_ID=$(devcontainer up --workspace-folder "$TOPLEVEL_DIR" | sed 's/.*"co
 # Actually execute CMD. We do this instead of devcontainer exec because the 
 # latter caused issues with TUIs like neovim, whereas docker exec does not seem
 # to have these issues.
-docker exec -u vscode -it -w /workspaces/orb-rustzone "$CONTAINER_ID" $CMD
+docker exec -it -w /workspaces/orb-rustzone "$CONTAINER_ID" $CMD
 
