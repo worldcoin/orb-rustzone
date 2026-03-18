@@ -34,10 +34,14 @@ sandbox = false
 max-jobs = auto
 EOF
 
-# Install direnv & starship
+# Install packages
 RUN nix profile add \
     nixpkgs#direnv \
-    nixpkgs#starship
+    nixpkgs#starship \
+    nixpkgs#vim \
+    nixpkgs#neovim
+
+# Configure shell
 RUN cat >> ${HOME}/.bashrc <<'EOF'
 eval "$(direnv hook bash)"
 eval "$(starship init bash)"
