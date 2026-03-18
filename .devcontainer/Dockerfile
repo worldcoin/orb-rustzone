@@ -36,10 +36,11 @@ EOF
 
 # Install packages
 RUN nix profile add \
+    nixpkgs#awscli2 \
     nixpkgs#direnv \
+    nixpkgs#neovim \
     nixpkgs#starship \
-    nixpkgs#vim \
-    nixpkgs#neovim
+    nixpkgs#vim
 
 # Configure shell
 RUN cat >> ${HOME}/.bashrc <<'EOF'
