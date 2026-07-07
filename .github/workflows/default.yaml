@@ -8,6 +8,10 @@ permissions: {}
 jobs:
   ta:
     name: TA
+    # Fork PRs must not reach the id-token: write signing job. GitHub already
+    # downgrades the fork GITHUB_TOKEN to read-only, but gate explicitly so the
+    # protection does not depend on that implicit behavior.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     uses: ./.github/workflows/ta.yaml
     with:
       prod: false
