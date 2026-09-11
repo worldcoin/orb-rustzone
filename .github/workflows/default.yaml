@@ -8,9 +8,9 @@ permissions: {}
 jobs:
   ta:
     name: TA
-    # Fork PRs must not reach the id-token: write signing job. GitHub already
-    # downgrades the fork GITHUB_TOKEN to read-only, but gate explicitly so the
-    # protection does not depend on that implicit behavior.
+    # Skip ordinary fork runs. pull_request workflows are PR-controlled, so
+    # GitHub's fork-token restrictions remain required; this guard is not an
+    # independent security boundary if those protections change.
     if: ${{ !startsWith(github.event_name, 'pull_request') || github.event.pull_request.head.repo.full_name == github.repository }}
     uses: ./.github/workflows/ta.yaml
     with:
