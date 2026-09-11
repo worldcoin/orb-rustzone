@@ -145,7 +145,7 @@ jobs:
       - uses: cachix/install-nix-action@0b0e072294b088b73964f1d72dfdac0951439dbd # pin@v31.8.4
       - uses: cachix/cachix-action@ad2ddac53f961de1989924296a1f236fcfbaa4fc # pin@v15
         # not on prod to eliminate privilege escalation via cachix cache injection
-        if: ${{ matrix.environment }} == 'stage'
+        if: ${{ matrix.environment == 'stage' }}
         continue-on-error: true
         with:
           name: worldcoin
