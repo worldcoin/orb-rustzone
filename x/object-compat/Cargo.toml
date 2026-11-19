@@ -1,0 +1,10 @@
+[package]
+name = "object"
+version = "0.38.1"
+publish = false
+
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+object-upstream = { package = "object", version = "0.40.0" }
