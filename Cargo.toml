@@ -17,3 +17,7 @@ tracing-subscriber = "0.3.22"
 [workspace.dependencies.orb-x-optee]
 branch = "main"
 git = "https://github.com/worldcoin/orb-software"
+
+[patch.crates-io]
+# shortcut: bridge orb-x-optee's object 0.38 requirement until we can upgrade orb-x-optee.
+object = { path = "x/object-compat" }
